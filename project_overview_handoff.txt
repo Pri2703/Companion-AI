@@ -1,0 +1,56 @@
+# YOLO Footpath Assistive Navigation - Comprehensive Handoff Document
+Generated for Developer/Agent Context
+
+## 1. Primary Objectives Accomplished
+This project was transitioned from a heavy, monolithic script-based execution (YOLO+MiDaS+TTS inside one script) into a fully modular, API-driven, user-interactive web application dashboard. 
+* Total Source Optimization: Size actively reduced from ~4.3 GB to ~22.5 MB by eliminating massive virtual environments (`yoloenv`), redundant `runs/` checkouts, and local output artifacts.
+* Technology Stack: FastAPI (Backend), React + Vite (Frontend), YOLO, MiDaS.
+
+## 2. Backend Architecture (`/backend`)
+The backend logic has been segregated fundamentally to ensure API decoupling natively:
+* **`backend/app.py`:**
+  * Runs a FastAPI web server via Uvicorn.
+  * Contains a threaded `camera_loop` bounding OpenCV interactions natively in the background, keeping the HTTP endpoints completely unblocked.
+  * Enables dynamic module resolution (`sys.path.append()`) allowing developers to boot via `uvicorn backend.app:app --reload` natively from the root dir.
+  * Explicitly defines the Manual interactive start/pause cycle (`POST /start`, `POST /pause`, `GET /status`).
+* **`backend/core/detection_engine.py`:**
+  * Loads and interfaces perfectly with the local YOLO weights (`models/best.pt`) and local PyTorch Hub `intel-isl/MiDaS` cache natively. Bounding boxes and depths natively calculated dynamically.
+* **`backend/core/alert_engine.py`:**
+  * Maps physical geometries converting AI arrays into directions ("left", "right", "ahead").
+  * **Critical Stability Filter:** Contains `self.alert_history` which strictly tracks consecutive inferences preventing objects from firing an alert unless observed over `>= 2 frames`. Eliminates noisy bounding-box TTS flicker.
+
+## 3. Frontend Architecture (`/frontend`)
+Constructed using Vite + React (`npm create vite@latest frontend`).
+* **`src/App.jsx`:** The main orchestrator. Hydrates tracking states locally dynamically pulling from `GET http://localhost:8000/status` natively.
+* **`src/components/Controls.jsx`:** A highly interactive control panel firing `fetch()` to pause or start execution without dropping the camera connection.
+* **`src/components/VideoFeed.jsx`:** Streams MJPEG conditionally over `http://localhost:8000/video`.
+* **`src/components/AlertsPanel.jsx`:** 
+  * Actively polls `http://localhost:8000/data` natively retrieving bounding arrays (`objects`) and text-events (`alerts`).
+  * Handles Text-To-Speech natively via browser APIs (`window.speechSynthesis`). Only speaks when payloads mutate actively securely locked behind checking if the detection pipeline is `running`.
+
+## 4. Endpoint Definitions (FastAPI)
+* `GET /health` : Rapid API vitality ping.
+* `GET /video` : Encodes/Yields `multipart/x-mixed-replace` MJPEG frames natively.
+* `GET /data` : Returns heavily sanitized JSON (e.g., `{"objects": [{"label": "person", "distance": 2.1, "direction": "left"}], "alerts": ["person on left at 2.1 meters"]}`). If tracking is paused or errored natively, safely yields fallback structs `{"objects": [], "alerts": ["Detection paused"]}` natively.
+* `POST /start` & `POST /pause`: Overrides execution flags inside the orchestrator frame-loop natively bypassing YOLO/MiDaS matrix logic natively while retaining active HTTP video pipelines safely!
+
+## 5. Current Dependencies
+* **Python**: `torch`, `torchvision`, `timm` (critical for MiDaS hub), `ultralytics`, `fastapi`, `uvicorn`, `opencv-python`, `Pillow`, `numpy`. (Captured strictly in `requirements.txt`).
+* **Node.js**: Standard React Vite `package.json` configurations.
+
+## 6. How to Run Locally
+**Terminal 1 (Backend):**
+```powershell
+.\myenv\Scripts\activate
+uvicorn backend.app:app --reload
+```
+**Terminal 2 (Frontend):**
+```powershell
+cd frontend
+npm run dev
+```
+
+## Future Next Steps / Focus Areas
+* Enhance React UI/UX using specialized components (e.g., Tailwind or Chakra UI instead of native CSS `App.css`).
+* Resolve deprecation warnings logged by FastAPI upon startup (`on_event("startup")` vs `lifespan`).
+* Create configuration endpoints to actively modify detection confidence (`conf`), model selections, or MiDaS calibration curves (`midas_scale.json`) straight from the frontend interface!

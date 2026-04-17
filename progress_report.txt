@@ -1,0 +1,64 @@
+# YOLO Footpath Project: Progress & Current State Report
+Generated for Handover/Next Agent Instruction
+
+## 1. Project Cleanup & Size Optimization
+* **Initial State:** ~4.3 GB footprint with monolithic scripts, unused logs, and a massive virtual environment.
+* **Actions Taken:** 
+  * Deleted `/runs` folder (old YOLO training outputs and predictions).
+  * Deleted `/yoloenv` (local ~3.4GB virtual environment).
+  * Cleared out stray `.jpg`, `.png`, and `.npy` cache/debug files.
+  * Deleted obsolete scripts (`debug_*, inspect_*, test*, check_model*, precision.py, detect_depth_tts_save2.py`).
+* **Result:** Final source codebase size reduced drastically to ~22.5 MB.
+
+## 2. Structural Refactoring
+Moved the messy root folder into an organized, API-first skeleton:
+```text
+project_root/
+  ├── backend/
+  │   ├── app.py                     # Entrypoint (FastAPI)
+  │   ├── core/
+  │   │   ├── __init__.py
+  │   │   ├── detection_engine.py    # Segregated YOLO + MiDaS AI logics
+  │   │   └── alert_engine.py        # Segregated spatial alert logic
+  │   └── services/                  # Ready for future business logic
+  │
+  ├── models/
+  │   └── best.pt                    # Centralized YOLO model weights
+  ├── utils/
+  │   ├── calib_utils.py             # Calibration utilities
+  │   ├── midas_calib.json           # Active quad/affine mapping specs
+  │   └── midas_multi_calibrate.py
+  ├── data.yaml                      # YOLO configuration metadata
+  ├── demo_yolo_midas_tts.py         # Retained for reference/legacy demos
+  └── requirements.txt               # Updated lightweight pip dependencies
+```
+
+## 3. Modularization (Monolith to Backend Core)
+* Dissected the monolithic `detect_depth_tts_save.py` and modularized it:
+  * **`backend/core/detection_engine.py`:** Initializes the PyTorch hub model (`intel-isl/MiDaS`) and local YOLOv8 weights (`models/best.pt`). Emits an array of structured JSON dicts (label, confidence, bbox, depth mapped to meters).
+  * **`backend/core/alert_engine.py`:** Consumes the detected JSON array. Runs mathematical center checks to determine direction (`on left`, `on right`, `ahead`) and computes urgency mapping based on proximity.
+* **TTS Removal:** Completely removed `pyttsx3`, `gTTS`, and threaded `pyttsx3` locks so the frontend browser (e.g., React Speech Synthesis) can handle voice native rendering. Returned simple strings inside a JSON list instead.
+
+## 4. FastAPI Orchestrator implementation
+* Replaced the main execution script entirely with **`backend/app.py`**.
+* Implemented threading: A background `camera_loop(source=0)` reads the camera continuously to avoid IO blocking the web server endpoints.
+* **Endpoints exposed:**
+  * `GET /video`: Streams the annotated frames natively as MJPEG (`multipart/x-mixed-replace`).
+  * `GET /data`: Serves the live JSON payload resulting from the AI engines. Structure: `{"objects": [...], "alerts": [...]}`.
+
+## 5. Dependency Repair
+* Generated a strict `requirements.txt` dropping dependencies like `pyttsx3`.
+* Included `timm` explicitly, satisfying implicit missing module errors thrown internally by the `MiDaS` Torch hub loader executing BEiT backbones.
+* Included `fastapi` and `uvicorn`.
+
+## 6. Current State & Validation
+* A new virtual environment (`myenv`) was instantiated.
+* Required dependencies install flawlessly.
+* The API runs locally via `python backend/app.py` and successfully boots onto `http://0.0.0.0:8000`.
+* Both YOLO cache and PyTorch Hub MiDaS configurations successfully bind, and the camera IO loop initiates immediately.
+
+## Next Agent Checklist / Future Considerations
+* Configure CORS in `backend/app.py` if the UI will run on a different host/port natively (e.g., typical React/Next.js dev server on port 3000).
+* Build Frontend (React or Vanilla) hooking into `/data` via fetch/polling loops and `speechSynthesis.speak()` for the alerts.
+* Bind `<img src="http://localhost:8000/video" />` directly onto the interface.
+* Resolve deprecation warnings for FastAPI `on_event("startup")` vs `lifespan` in `app.py`, though not mission-critical right now.

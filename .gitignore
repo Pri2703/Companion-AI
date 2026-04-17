@@ -1,0 +1,49 @@
+# Virtual environments
+myenv/
+yoloenv/
+venv/
+env/
+.env/
+.env
+
+# NodeJS & UI
+node_modules/
+dist/
+build/
+.next/
+
+# YOLO runs & outputs
+runs/
+debug_*
+*.mp4
+*.avi
+
+# Python module cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large data / Models
+models/
+*.npy
+*.ptc
+*.pt
+*.pth
+*.weights
+*.onnx
+*.tflite
+*.pb
+*.h5
+*.engine
+
+# Temp logs and debug text
+*.log
+err_out.txt
+tmp_mongo_err.txt
+test_db_out.txt

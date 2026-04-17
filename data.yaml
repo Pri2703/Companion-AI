@@ -1,0 +1,23 @@
+train: /kaggle/working/dataset/images/train
+val: /kaggle/working/dataset/images/val
+nc: 19
+names:
+- bench
+- bicycle
+- branch
+- bus
+- car
+- chair
+- crosswalk
+- fire_hydrant
+- motorcycle
+- person
+- pothole
+- scooter
+- stairs
+- stop_sign
+- traffic_cone
+- traffic_light
+- train
+- tree
+- truck

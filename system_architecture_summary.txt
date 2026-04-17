@@ -1,0 +1,56 @@
+# YOLO Footpath Assistive Navigation - System Architecture & Total Work Summary
+Generated for Developer/Stakeholder Context
+
+## 1. Project Overview & Evolution
+The project has successfully transitioned from a heavy, monolithic script-based execution environment (previously ~4.3 GB) into a highly modular, decoupled, API-driven web application architecture (currently ~22.5 MB source footprint).
+
+**Core Technology Stack**:
+- Backend: Python, FastAPI, Uvicorn (REST API & Streaming).
+- Computer Vision AI: PyTorch, YOLOv8 (Object Detection), MiDaS (Depth Estimation), OpenCV.
+- Frontend: React + Vite, Modern CSS (Glassmorphism aesthetics).
+- Database: MongoDB (User auth & session state persistence).
+
+## 2. Backend Architecture (`/backend`)
+A FastAPI-driven orchestrator designed to decouple heavy AI matrix calculus from HTTP interactions natively.
+
+* **Entrypoint (`backend/app.py`):**
+  * Runs the web server async over Uvicorn.
+  * Contains a threaded background `camera_loop` that interacts with OpenCV. By keeping the AI payload and camera loop on a background thread, the HTTP REST endpoints remain completely unblocked and responsive.
+  * Explicitly defines the connection endpoints for video streaming, state polling, and authentication APIs.
+* **AI Core (`backend/core/`):**
+  * `detection_engine.py`: Loads the local YOLO weights (`models/best.pt`) and local PyTorch Hub `intel-isl/MiDaS` cache. Calculates bounding boxes and depths dynamically across matrices.
+  * `alert_engine.py`: Converts spatial AI arrays into logical directions ("on left", "on right", "ahead"). Features a critical stability filter (`alert_history`) which tracks consecutive inferences, preventing objects from firing audio alerts unless observed over >= 2 frames (eliminating noisy TTS flicker).
+* **Database Integration (`backend/database/mongo.py`):**
+  * Manages connections to the MongoDB cluster leveraging connection pooling (configured via `.env`). Centralizes data operations for Users and Caretaker relationships.
+
+## 3. Frontend Architecture (`/frontend`)
+Constructed using Vite + React. Employs a dynamic, stateful application to control the AI logic.
+
+* **Pages (`src/pages/`):**
+  * `Login.jsx` & `Signup.jsx`: Handles user authentication sessions, interfacing with the MongoDB backend securely.
+  * `UserDashboard.jsx`: The primary dashboard where the assistive user pipeline streams.
+  * `Caretaker.jsx`: Dedicated administrative view designed to manage or monitor user parameters remotely.
+* **Components (`src/components/`):**
+  * `VideoFeed.jsx`: Actively decodes the MJPEG `multipart/x-mixed-replace` streams yielded conditionally from HTTP `GET /video`.
+  * `AlertsPanel.jsx`: Actively polls `http://localhost:8000/data` for bounding arrays and alert prompts natively. Features critical integration with native Browser APIs (`window.speechSynthesis`) for local Text-To-Speech rendering.
+  * `Controls.jsx`: Highly interactive control board enabling manual start/pause triggers overriding the backend execution flags without dropping the MJPEG camera socket link.
+  * `ui/GlassCard.jsx`: Reusable dynamic UI design layer for presenting modern component aesthetics.
+
+## 4. Endpoints Deployed (FastAPI)
+* `GET /health` : Rapid API vitality check.
+* `GET /video` : Encodes and yields raw YOLO+MiDaS annotated OpenCV frames natively.
+* `GET /data` : Returns heavily sanitized JSON (e.g., `{"objects": [...], "alerts": [...]}`). Falls back gracefully if the backend is paused.
+* `POST /start` & `POST /pause` : Safely overrides execution flags inside the backend background thread orchestrator loop.
+
+## 5. Total Work Completed to Date
+1. **Source Code Optimization**: Completely removed old `runs/` checkouts, caches, and massive virtual environments (`yoloenv`), drastically streamlining the repository size.
+2. **Monolithic Refactoring**: Successfully separated the original massive PyTorch inference script into clean MVC-equivalent Python abstractions (Engine, Router, Models).
+3. **AI Stabilization Layer**: Created an advanced physical geometry layer that prevents alert spamming by tracking objects temporally frame-over-frame instead of raw frame assertions.
+4. **Local Text-To-Speech Re-architecture**: Stripped heavy server-side Python libraries (`pyttsx3`, `gTTS`) that blocked UI threads and successfully pushed TTS rendering cleanly strictly to the client-side User Browser (`window.speechSynthesis`).
+5. **Modernizing the UI**: Built a real-time responsive React application incorporating dedicated routing (Login, Signup, User Dashboard, Caretaker Console) and rich, stylized modern interfaces.
+6. **Robust Database Layer Application**: Expanded the original anonymous tool into an actual Multi-Tenant Platform utilizing MongoDB.
+
+## Future / Next Imminent Steps
+* Expand Caretaker Dashboard features (potentially remote camera linking/viewing).
+* Configure any extended detection configurations (like `conf` sliders) actively into the frontend UI payload logic.
+* Finalize comprehensive deployment configurations.
